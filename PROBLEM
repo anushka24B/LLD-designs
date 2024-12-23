@@ -1,0 +1,126 @@
+Requirements:
+
+1. Multiple parking levels - with parking spots
+2. Different vehicles - CAR, BIKE, TRUCKS
+3. Parking Spot specific to each vehicle
+
+4. Assign parkingSpot() - on entry
+5. Release parkingSpot() - on exit
+6. Track available parkingSpots
+7. Provide Real time information to customers
+8. Handle multiple entry & exit
+9. Handle concurrent access
+
+
+Entities:
+1. Parking Lot - should have a single instance - SINGLETON Pattern
+    contains:
+        - List<Level>
+        - park()
+        - unpark()
+        - getAvailableSpot()
+
+2. Level
+    contains:
+        - List<Parking Spot>
+        - park()
+        - unpark()
+        - getAvailableSpot()
+
+3. Parking Spot
+    - availability
+    - no of parked vehicles
+
+4. Vehicle - abstract. extended by
+    CAR, BIKE, TRUCK classes
+
+5. Vehicle Type - ENUM - CAR, BIKE, TRUCK
+
+6. Entry Gate - enterVehicle()
+
+7. Exit Gate - exitVehicle()
+
+
+UML
++-------------------+
+|    Vehicle        |
++-------------------+
+| - licensePlate    |
+| - type: VehicleType|
++-------------------+
+| + getLicensePlate()|
+| + getType()        |
++-------------------+
+         ^
+         |
++--------+---------+
+|        |         |
+|        |         |
+|        |         |
+|        |         |
+|        |         |
+|        |         |
++--------+---------+
+| Car    | Motorcycle | Truck |
++--------+---------+
+|                     |
+|                     |
++--------+---------+
+         ^
+         |
++--------+---------+
+| ParkingSpot       |
++-------------------+
+| - number          |
+| - type: ParkingSpotType|
+| - isOccupied      |
+| - currentVehicle  |
++-------------------+
+| + assignVehicle() |
+| + removeVehicle() |
+| + isOccupied()    |
+| + getType()       |
++-------------------+
+         ^
+         |
++--------+---------+
+| ParkingLevel     |
++-------------------+
+| - levelNumber    |
+| - parkingSpots: List<ParkingSpot>|
++-------------------+
+| + parkVehicle()  |
+| + releaseVehicle()|
+| + getAvailableSpots()|
++-------------------+
+         ^
+         |
++--------+---------+
+| ParkingLot       |
++-------------------+
+| - levels: List<ParkingLevel>|
++-------------------+
+| + parkVehicle()  |
+| + releaseVehicle()|
+| + getTotalAvailableSpots()|
++-------------------+
+         ^
+         |
++--------+---------+
+| EntryGate        |
++-------------------+
+| - parkingLot: ParkingLot|
++-------------------+
+| + enterVehicle() |
++-------------------+
+         ^
+         |
++--------+---------+
+| ExitGate         |
++-------------------+
+| - parkingLot: ParkingLot|
++-------------------+
+| + exitVehicle()  |
++-------------------+
+
+6. Main - orchestrates everything
