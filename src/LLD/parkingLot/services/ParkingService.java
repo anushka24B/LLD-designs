@@ -1,8 +1,8 @@
-package services;
+package LLD.parkingLot.services;
 
-import exceptions.ParkingLotException;
-import models.ParkingLot;
-import models.Vehicle;
+import LLD.parkingLot.exceptions.ParkingLotException;
+import LLD.parkingLot.models.ParkingLot;
+import LLD.parkingLot.models.Vehicle;
 
 public class ParkingService {
     private ParkingLot parkingLot;

@@ -1,4 +1,4 @@
-package enums;
+package LLD.parkingLot.enums;
 
 public enum ParkingSpotType {
     CAR(VehicleType.CAR),

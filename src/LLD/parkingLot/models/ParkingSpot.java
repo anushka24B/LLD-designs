@@ -1,6 +1,6 @@
-package models;
+package LLD.parkingLot.models;
 
-import enums.ParkingSpotType;
+import LLD.parkingLot.enums.ParkingSpotType;
 
 public class ParkingSpot {
     private int number;

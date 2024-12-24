@@ -1,4 +1,4 @@
-package models;
+package LLD.parkingLot.models;
 
 public class ExitGate {
     private ParkingLot parkingLot;

@@ -1,10 +1,9 @@
-package models;
+package LLD.parkingLot.models;
 
-import enums.ParkingSpotType;
+import LLD.parkingLot.enums.ParkingSpotType;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public class ParkingLot {
     private List<Level> levels;

@@ -1,6 +1,6 @@
-package models;
+package LLD.parkingLot.models;
 
-import enums.VehicleType;
+import LLD.parkingLot.enums.VehicleType;
 
 public class Bike extends Vehicle{
 

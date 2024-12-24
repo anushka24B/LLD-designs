@@ -1,6 +1,6 @@
-package models;
+package LLD.parkingLot.models;
 
-import enums.VehicleType;
+import LLD.parkingLot.enums.VehicleType;
 
 public abstract class Vehicle {
     private String licensePlate;

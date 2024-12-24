@@ -1,6 +1,6 @@
-package models;
+package LLD.parkingLot.models;
 
-import enums.ParkingSpotType;
+import LLD.parkingLot.enums.ParkingSpotType;
 
 import java.util.ArrayList;
 import java.util.List;
