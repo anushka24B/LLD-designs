@@ -1,5 +1,7 @@
 package LLD.parkingLot.models;
 
+import LLD.parkingLot.interfaces.Vehicle;
+
 public class ExitGate {
     private ParkingLot parkingLot;
 

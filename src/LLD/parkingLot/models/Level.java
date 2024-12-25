@@ -1,6 +1,7 @@
 package LLD.parkingLot.models;
 
 import LLD.parkingLot.enums.ParkingSpotType;
+import LLD.parkingLot.interfaces.Vehicle;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,5 +50,9 @@ public class Level {
 
     public int getLevelNumber() {
         return levelNumber;
+    }
+
+    public List<ParkingSpot> getParkingSpots() {
+        return this.parkingSpots;
     }
 }

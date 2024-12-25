@@ -1,0 +1,11 @@
+Design Patterns that can be used here:
+
+1. Singleton Pattern - so that only one instance of Parking lot is created & reused.
+
+2. Factory Pattern - to create different types of vehicles (like Car, Truck, Bike).
+
+3. Observer Pattern (For Notifications) - to notify interested parties when a parking spot is occupied or released.
+For example, a ParkingSpotObserver will be notified whenever a parking spot is filled or emptied.
+
+4. Strategy Pattern (For Parking Strategy, BillingStrategy) - to define different strategies for parking vehicles
+For example, strategies for parking vehicles based on the vehicle type, the first available spot, or a priority-based strategy.
