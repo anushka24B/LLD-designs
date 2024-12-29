@@ -1,0 +1,46 @@
+Requirements:
+
+1. Support Multiple products with different prices & quantities
+2. Accept coins and notes of different denominations - money class
+3. Should dispense the selected product and return change if necessary.
+4. Should keep track of the available products and their quantities.
+5. Should handle multiple transactions concurrently and ensure data consistency.
+6. The machine should provide an interface for restocking products and collecting money.
+7. Should handle exceptional scenarios, such as insufficient funds or out-of-stock products.
+
+Entities:
+
+1. Product
+        - price
+        - quantities
+        - type
+
+2. MoneyType Enum or coin & notes class
+    - COIN
+    - NOTES
+
+3. Money
+    - MoneyType
+    - Amount
+
+4. Inventory
+
+5. VendingMachine
+
+6. ProductType
+
+Methods:
+1. dispenseProduct()
+2. acceptMoney()
+3. getAvailableProducts()
+
+- Use States to track machine states - VendingMachineState - IDLE, READY, DISPENSE, OUT-OF-STOCK
+
+
+Design Patterns
+
+1. Singleton - for single instance of vending machine
+2. Factory - for creating products
+3. Strategy - for handling different payment strategies
+4. Observer pattern - to notify when product is restocked
+5. States
