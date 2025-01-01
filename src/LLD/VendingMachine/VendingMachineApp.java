@@ -8,7 +8,7 @@ import LLD.VendingMachine.models.Product;
 import LLD.VendingMachine.models.VendingMachine;
 
 public class VendingMachineApp {
-    public static void main(String[] args) {
+    public static void run() {
         VendingMachine vendingMachine = VendingMachine.getInstance();
 
         // Create Products

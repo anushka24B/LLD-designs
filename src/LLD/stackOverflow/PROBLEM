@@ -1,0 +1,30 @@
+Requirements:
+
+Users can post questions, answer questions, and comment on questions and answers.
+Users can vote on questions and answers.
+Questions should have tags associated with them.
+Users can search for questions based on keywords, tags, or user profiles.
+The system should assign reputation score to users based on their activity and the quality of their contributions.
+The system should handle concurrent access and ensure data consistency.
+
+
+Entities:
+
+1. User - id, username, email, reputationScore
+2. Question -> Tags; id, title, description, list<answers>, tag id, votes, creationDate, comments
+3. Answers -> questionID, content, votes, comments, author, creationDate
+4. Comment - UserId(author), Content, commentId
+5. Tag - question id, name
+6. Vote
+7. StackOverflow
+
+
+Methods:
+1. PostQuestion
+2. answerQuestion
+3. comment -> Question & Answers
+4. voteQuestion & voteAnswers
+5. searchQuestion - based on keywords, tags, or user profiles
+6. assignReputationScore
+
+Design -> Questions, answer - both can have vote, comment
