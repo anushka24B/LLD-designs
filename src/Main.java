@@ -1,4 +1,5 @@
 import LLD.VendingMachine.VendingMachineApp;
+import LLD.loggingFramework.LoggerDemo;
 import LLD.parkingLot.ParkingServiceDemo;
 import LLD.stackOverflow.StackOverflowDemo;
 
@@ -12,6 +13,9 @@ public class Main {
         //VendingMachineApp.run();
 
         // Stack Overflow
-        StackOverflowDemo.run();
+        //StackOverflowDemo.run();
+
+        // Logging Framework
+        LoggerDemo.run();
     }
 }

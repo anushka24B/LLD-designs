@@ -1,0 +1,69 @@
+Requirements:
+
+1. The logging framework should support different log levels, such as DEBUG, INFO, WARNING, ERROR, and FATAL.
+2. It should allow logging messages with a timestamp, log level, and message content.
+3. The framework should support multiple output destinations, such as console, file, and database.
+4. It should provide a configuration mechanism to set the log level and output destination.
+5. The logging framework should be thread-safe to handle concurrent logging from multiple threads.
+6. It should be extensible to accommodate new log levels and output destinations in the future.
+
+Entities:
+
+1. LogLevel - DEBUG, INFO, WARNING, ERROR, and FATAL
+2. LogMessage - timestamp, log level, and message content.
+5. Logger - Main class -> works with loghandler
+6. LogHandler - strategy interface
+7. Concrete LogHandlers – Implementations for output destinations (console, file, database).
+8. LogManager (Singleton) - manages logger, configure
+
+
+Design Pattern
+1. Strategy - allows dynamic selection of the logging behavior (output destination), and we can introduce additional strategies for future destinations.
+2. Singleton - for one instance of logger
+
+
+UML
+
+        +---------------------+
+        |      LogManager      |
+        +---------------------+
+        | - instance: LogManager|
+        | - logger: Logger     |
+        +---------------------+
+        | + getInstance(): LogManager |
+        | + getLogger(): Logger|
+        | + configureLogger(LogHandler, LogLevel)|
+        +---------------------+
+               |
+               |
+        +------------------+
+        |      Logger      |
+        +------------------+
+        | - logHandler: LogHandler |
+        | - logLevel: LogLevel |
+        +------------------+
+        | + log(LogLevel level, String message): void |
+        | + setLogHandler(LogHandler handler): void |
+        | + setLogLevel(LogLevel level): void |
+        +------------------+
+               |
+        +------|-------+-----------+
+        |      |       |           |
++-------------+  +--------------+ +--------------------+
+| ConsoleLogHandler| | FileLogHandler | | DatabaseLogHandler|
++-------------+  +--------------+ +--------------------+
+| + handleLog(LogMessage): void |
++-------------+  | + handleLog(LogMessage): void |
+                 +--------------+  +--------------------+
+                 | + handleLog(LogMessage): void |
+                 +-------------------------------+
+             +---------------------+
+             |     LogMessage       |
+             +---------------------+
+             | - message: String    |
+             | - level: LogLevel    |
+             | - timestamp: LocalDateTime |
+             +---------------------+
+             | + toString(): String |
+             +---------------------+
+
