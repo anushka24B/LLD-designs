@@ -1,4 +1,5 @@
 import LLD.VendingMachine.VendingMachineApp;
+import LLD.coffeeVendingMachine.CoffeMachineDemo;
 import LLD.loggingFramework.LoggerDemo;
 import LLD.parkingLot.ParkingServiceDemo;
 import LLD.stackOverflow.StackOverflowDemo;
@@ -16,6 +17,8 @@ public class Main {
         //StackOverflowDemo.run();
 
         // Logging Framework
-        LoggerDemo.run();
+        //LoggerDemo.run();
+
+        CoffeMachineDemo.run();
     }
 }

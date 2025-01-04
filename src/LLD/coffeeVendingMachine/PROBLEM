@@ -1,0 +1,26 @@
+Requirements:
+
+The coffee vending machine should support different types of coffee, such as espresso, cappuccino, and latte.
+Each type of coffee should have a specific price and recipe (ingredients and their quantities).
+The machine should have a menu to display the available coffee options and their prices.
+Users should be able to select a coffee type and make a payment.
+The machine should dispense the selected coffee and provide change if necessary.
+The machine should track the inventory of ingredients and notify when they are running low.
+The machine should handle multiple user requests concurrently and ensure thread safety.
+
+Entities:
+1. coffee machine - displayMenu(), selectCoffee(), dispenseCoffee(), returnChange(), updateIngredients
+2. Coffee - enum/interface - espresso, cappuccino, and latte - price, recipe
+3. Recipe - map<ingredients, quantities>
+4. User - > selectCoffee(), makePayment()
+5. Inventory - ingredients - track & notify when low
+6. Concurrency & thread safety
+7. Ingredient - name, quantity
+8. Coffee Vending Machine
+9. menu
+
+
+Design Patterns:
+1. Singleton - for Inventory
+2. Factory -  To create coffee objects based on the selected type (Espresso, Cappuccino, Latte).
+3. Observer -  To notify when an ingredient is running low.
