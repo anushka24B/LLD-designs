@@ -1,0 +1,164 @@
+## High-Level Design (HLD) for URL Shortener Service
+
+### Functional Requirements:
+1. Users should be able to fetch a short URL by providing a long URL.
+2. Users should be able to redirect to the original URL using the short URL.
+3. (Optional) Users can specify a custom short URL.
+4. (Optional) Users can set an expiration date for the short URL.
+
+### Out of Scope:
+1. User Authentication.
+2. Account Management.
+3. Analytics on link clicks (e.g., click count, redirection count).
+
+### Non-Functional Requirements (NFR):
+1. Availability: 99.99% uptime (Availability > Consistency).
+2. Latency: < 100 ms for URL shortening and redirection.
+3. Scalability: Handle high traffic efficiently.
+4. Fault Tolerance: Ensure minimal downtime.
+5. Daily Active Users (DAU): 100M.
+   - Write Requests: ~20M/day (URL generation).
+   - Read Requests: ~100M/day (Redirections).
+6. Data Retention: Short URLs stored for at least 5 years.
+7. Support for up to 1 billion unique short URLs.
+8. Ensure short URL uniqueness.
+
+### Metrics Estimation:
+- Read QPS: 100M/24 *3600 =  ~1,157 reads/sec.
+- Write QPS: 20M Writes/ (24*3600)s = ~231 Writes/Sec
+- Storage: Assuming ~500 bytes per record:
+  - Total URLs: 1 billion.
+  - Storage requirement: ~500 GB.
+- Cache: If 20% of URLs are frequently accessed, cache size = 0.2×1B×500 bytes = 100 GB.
+- Bandwidth:
+  - Read Bandwidth: 1,157 × 500 bytes/sec ≈ 578 KB/sec.
+  - Write Bandwidth: 231 × 500 bytes/sec ≈ 115 KB/sec.
+
+---
+
+### Core Entities:
+1. Long URL: The original URL.
+2. Short URL: The shortened version of the original URL.
+3. User:  To associate custom URLs or track usage.
+
+---
+
+### APIs:
+1. Shorten a URL:
+Endpoint: `POST /urls/`
+Request Body:
+{
+  "originalURL": "www.example.com/very-long-url",
+  "customAlias": "optional-custom-alias",
+  "expirationDate": "optional-expiration-date"
+}
+
+Response:
+{
+  "short_url": "https://short.url/abc123"
+}
+```
+
+2. Redirect to Original URL:
+Endpoint: `GET /short-url/<short-code>`
+Behavior: Returns a `302 Redirect` to the original long URL.
+
+---
+
+### High-Level Design:
+#### Components:
+1. API Gateway: Routes requests to appropriate backend services.
+2. Application Layer:
+   - Generates short URLs.
+   - Handles collisions using retries (if using hash-based generation).
+   - Interfaces with the database and cache.
+3. Database: Stores mappings of short URLs to long URLs.
+4. Cache (Redis):
+   - Caches frequently accessed short URL mappings for faster redirection.
+   - Reduces read latency.
+5. CDN:Caches static resources and enhances performance for redirect requests.
+6. Worker Service:
+   - Periodically cleans up expired URLs.
+   - Manages asynchronous tasks (e.g., batch writes).
+
+---
+
+### Short URL Generation:
+1. Random Hashing: Generate a random alphanumeric string (Base62 encoded).
+   - Pros: Simple to implement.
+   - Cons: Collision checks may increase latency with scale.
+2. Counter-based Encoding (Preferred):
+   - Use a global counter (e.g., Redis `INCR`) to generate unique IDs.
+   - Encode IDs using Base62 to minimize URL length.
+   - Pros: Ensures uniqueness, avoids collisions.
+
+#### Base62 Encoding:
+- Characters: [a-z, A-Z, 0-9].
+- Space for unique keys:
+  - Length 7: 62^7 ≈ 3.5 trillion unique URLs.
+
+---
+
+### Database Design:
+#### Schema:
+Table Name: `url_mappings`
+- `id` (Primary Key): Auto-increment or Base62 encoded.
+- `short_url`: Shortened URL.
+- `long_url`: Original URL.
+- `expiration_date`: Expiration timestamp.
+- `created_at`: Timestamp of creation.
+
+#### Database Choice:
+Primary Considerations:
+-High scalability.
+-Strong consistency for writes (to ensure uniqueness of short URLs).
+-Ability to handle 100M DAU with ~231 writes/sec and ~1,157 reads/sec.
+1. Primary DB:
+   - SQL (e.g., MySQL, PostgreSQL): Easy to implement joins and indexes.
+       - Requires careful scaling with sharding and replication as data grows.
+   - NoSQL (e.g., DynamoDB, Cassandra): Better for scalability and partitioning.
+       - Automatic sharding, high write throughput.
+---
+
+### Optimization for Reads:
+1. In-Memory Cache (Redis):
+   - Cache recently accessed short-to-long URL mappings.
+   - Use TTL for cache entries based on expiration date.
+   - Low latency
+   - High throughput
+2. **CDN:** Serve redirect responses for frequently accessed URLs.
+
+---
+
+### Fault Tolerance:
+1. Deploy services across multiple availability zones.
+2. Use load balancers to distribute traffic.
+3. Enable failover mechanisms for databases and cache.
+4.. Replication:
+   - Master-Slave or Master-Master replication for high availability.
+   - Read replicas to handle read-heavy workloads.
+5. Backup: Periodic backups to ensure data durability.
+
+---
+Scaling & Bottlenecks:
+Scaling:
+
+Horizontal Scaling: Add more servers for the application layer and database replicas.
+Read-heavy Optimization: Use cache (Redis) to offload database read operations.
+Write-heavy Optimization: Implement write-ahead logging or batch writes.
+Use distributed databases like DynamoDB or Cassandra for automatic scaling.
+Bottlenecks:
+
+Cache Saturation: Redis may run out of memory for very frequent access patterns. Mitigate with LRU eviction policies.
+Database Write Throughput: Avoid bottlenecks with partitioning or sharding.
+High Latency from Expired URLs: Efficient expiration management is critical to avoid bloating storage.
+Additional Suggestions:
+Monitoring and Alerts: Set up real-time monitoring for latency, errors, and resource utilization.
+API Rate Limiting: Prevent abuse of the system by throttling excessive requests.
+Security Considerations: Prevent malicious URL submissions (e.g., phishing, malware).
+Versioning: Plan for API versioning to support backward compatibility.
+
+
+
+
+
