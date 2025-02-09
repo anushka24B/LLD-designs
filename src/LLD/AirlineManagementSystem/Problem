@@ -1,0 +1,227 @@
+Requirements:
+
+1. User should be able to search for flights based on source, destination & dates
+2. User should be able to book the flights, make payment
+3. User should be able to select the seat
+4. User should be able to view the seats available.
+5. System should be able to handle aircraft, crew & pilot assignments.
+6. System should be able to handle flight schedules, departure, arrival time
+7. System should be able to handle passenger info like passage details & baggage info
+8. System should be able to handle cancellations, refunds & flight changes.
+9. User should be able to reserve flights.
+10. Support for multi flight bookings.
+11. The system should be able to send notifications to customers whenever a reservation is made/modified or there is an update for their flights.
+12. Only the admin of the system can add new aircrafts, flights, and flight schedules. Admin can cancel any pre-scheduled flight (all stakeholders will be notified).
+
+NFR
+13. System should be able to handle data consistency & concurrent access to system (like seat selection)
+14. System should be scalable.
+
+
+ENTITIES:
+
+1. User/Passenger
+2. Airline Management System
+3. Admin
+4. Aircraft
+5. Pilot
+6. Crew
+7. Seat
+8. Flight
+9. Payment
+10. Booking
+
+Top Use Cases
+
+1. Search Flights
+2. Select & assign seats
+3. Book/reserve/cancel flight
+4. Make payment
+5. Pilot/ crew assignment
+6. Update flight schedule
+7. Send notifications
+
+
+System Modules:
+1. User Management
+2. Flight Management
+3. Seat Selection & Booking
+4. Payment Processing
+5. Reservation & Cancellations
+6. Passenger Mgmt
+7. Scheduling & flight mgmt
+8. Flight Notifications
+
+
+User Mgmt
+1. User/Person
+ - name
+ - email
+ - role
+ + displayDetails()
+ + login()
+
+2. Customer - inherits User (--->), implements (->) Observer
+    - List<Reservation> reservations
+    + makeReservation(Flight, Seat, Payment)
+
+
+3. Admin ---> User
+   +addFlight(Flight)
+   +removeFlight(string FlightNumber)
+
+4. Crew ---> User
+    -role (PILOT, CABIN CREW ...)
+
+5. Passenger ---> User
+   - passportNum
+   - nationality
+   - List <Baggage> baggage
+   +addBaggage()
+
+5. Baggage
+   - baggageId
+   - weight
+   - baggageType (CHECKED_IN, HAND_CARRIED)
+
+Flight Mgmt
+1. Flight extends Aircraft
+    - flightNumber
+    - source
+    - destination
+    - departureTime
+    - arrivalTime
+    - Aircraft aircraft
+    - List<Seat> available
+    - List<Reservation> reservations
+    - String Gate
+    - FlightStatus
+
+    +addSeat(Seat seat)
+    +isSeatAvailable(Seat seat)
+    +getAvailableSeats: List<Seat>
+    +updateSeatAvailable(Seat seat)
+
+2. Aircraft
+   - aircraftID
+   - Model
+   - capacity
+   - List<Crew> crew;
+   - List<Seat> seats;
+
+   +assignCrew()
+
+
+Seat Selection & Booking
+1. Seat
+    -seatNumber: String
+    -SeatClass (ECO, PREMIUM ECO, BUSINESS, FIRST)
+    -isAvailable:bool
+    -SeatType (REGULAR, EMERGENCY_EXIT, EXTRA_SPACE)
+    -version:int (for concurrent requests)
+
+    +tryBookingSeat(version): bool
+
+
+2. Reservation
+   - Customer
+   - Flight
+   - Map<Passenger, FlightSeat> seatMap;
+   - Payment
+   - Date reservationDate
+   - ReservationStatus (CONFIRMED, CANCELLED, ...)
+
+   +makeReservation()
+   +cancelreservation()
+
+
+Payment Processing
+1. Payment
+    - paymentId
+    - amount
+    - paymentMethod (CARD, CASH, UPI ...)
+    - paymentDate
+    - paymentStatus (COMPLETED, FAILED, IN PROGRESS...)
+
+    + processPayment()
+
+Scheduling & flight mgmt
+1. FlightSchedule
+    - Flight
+    - Date scheduledDeparture
+    - Date scheduledArrrival
+    - flightStatus (ON TIME, BOARDING, ...)
+
+    +updateSchedule(departure, arrival)
+
+NotificationService
+1. FlightNotification
+    -List<Observers>
+    +addObserver
+    +removeObserver
+    +notifyObserver(message)
+
+2. Interface - Observer
+    +update(message)
+
+Airline Mgmt System
+- List<Flight> flights
+- List<Customers>
+
++addFlight
++searchFlight(Source, Destination)
++registerCustomer
+
+BookingService
++bookSeat
+
+
+
+Concurrency -
+1. Optimistic locking -
+
+public class Seat {
+    private int seatNumber;
+    private boolean isAvailable;
+    private int version; // To track changes
+
+    public boolean tryBookSeat(int version) {
+        if (this.version == version && this.isAvailable) {
+            this.isAvailable = false;  // Mark the seat as booked
+            this.version++;  // Increment the version number
+            return true;
+        }
+        return false;
+    }
+}
+
+2. Pessimistic Locking - can add timeout to provide chance to other user
+
+public synchronized boolean lockSeatForBooking(int seatNumber) {
+    Seat seat = getSeatByNumber(seatNumber);
+    if (seat.isAvailable()) {
+        seat.setAvailable(false); // Lock the seat
+        return true;
+    }
+    return false; // Seat is already booked by another user
+}
+
+public class BookingService {
+    public boolean bookSeat(int seatNumber, Customer customer) {
+        // Step 1: Retrieve the seat
+        Seat seat = seatRepository.getSeatByNumber(seatNumber);
+
+        // Step 2: Check availability and version (optimistic locking)
+        if (seat.tryBookSeat(seat.getVersion())) {
+            // Step 3: Proceed with booking
+            Booking booking = new Booking(customer, seat);
+            bookingRepository.save(booking);
+            return true; // Booking successful
+        } else {
+            // Step 4: Notify user of conflict
+            return false; // Booking failed, seat already taken
+        }
+    }
+}
+
+https://www.lldcoding.com/design-an-airline-management-system-machine-coding
