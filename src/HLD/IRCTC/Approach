@@ -1,0 +1,85 @@
+FUNCTIONAL REQUIREMENTS:
+1. Users should be able to search trains based on date, source & destination
+2. Users should be able to see available seats
+3. Users should be able to book tickets (handle concurrency)
+4. Users should be able to cancel the reservation
+5. Seat reusability -> after station2, user2  should get
+
+Assumptions:
+
+1. A train will run from source to destination once a day. In the case of the reverse journey, the ID of the train will change and it will be treated as a new train itself.
+2. We will also only book tickets that are confirmed, waitlisting is not supported.
+
+NFR:
+1. Consistency - no double booking of seats
+2. Scalability - handle large volume of traffics (during peak hours)
+3. Availability- 24/7
+4. Fault tolerance
+
+Database:
+1. Use Relational DB (like MySQL) -> structured data (as atomicity & consistency required); (users, bookings, trains - all are structured data) --> To use
+2. can use - NoSQL Database (e.g., MongoDB, Cassandra): For handling high-velocity data like logs, user sessions, and search indexing
+
+Database Schema:
+1. User
+    - userID (PK)
+    - name
+    - phone
+    - email
+
+2. Train
+    - trainID (PK)
+    - seatCount
+    - TrainName
+    - RunOnDays : Int (SMTWThFS) eg(1100001) - Sun, Mon, Sat
+
+3. Station
+    - stationID (PK)
+    - stationName
+    - platformCount
+
+4. Route --> Helps in search functionality to find trains between 2 stations
+    - RouteID (PK)
+    - TrainID (FK)
+    - StationID (FK)
+    - ArrivalTime
+    - DepartureTime
+    - Date
+
+    - Select R1.trainID, R1.ArrivalTime, R1.DepartureTime from "Route" as RQ Inner Join "Route" as R2 ON R2.trainID = R1.trainID where
+      R1.StationID = 'A' and R2.StationID = 'B' and R1.Date = '10-10-2024'
+
+5. StationToSeatMapping - Booked seats per train & station combination - to support partial booking & get seat availability
+    - ID (PK)
+    - StationID (FK)
+    - TrainID (FK)
+    - seatCount
+    - Seats (Array of SeatIDs)
+    - Date
+
+6. Booking
+    - BookingID (PK)
+    - TrainID (FK)
+    - From_station (FK)
+    - To_station (FK)
+    - UserID (FK)
+    - SeatID (FK)
+    - status
+    - Date
+    - PaymentStatus
+
+7. Seat
+    - SeatID (PK)
+    - TrainID (FK)
+    - isAvailable
+    - type
+    - price
+
+8. Payment
+    - paymentID (PK)
+    - userId (FK)
+    - BookingID (FK)
+    - PaymentStatus
+    - PaymentMethod
+    - timestamp
+
