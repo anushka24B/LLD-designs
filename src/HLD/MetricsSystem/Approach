@@ -1,0 +1,251 @@
+FUNCTIONAL REQUIREMENTS:
+
+1. System should be able to collect metrics from metrics sources.
+2. Collected metrics should be saved in storage.
+3. User should be able to query metrics at different time granularities.
+4. Alerts can be created on the metrics.
+
+NFR:
+1. Data collected should be accurate, reliable, and easily accessible.
+2. constant heavy write load, while the read load is spiky.
+
+Assumptions::
+The data must be averaged every 10 minutes, which accounts for about 10 million operational metrics written per day,
+and many metrics are collected at high frequency.
+
+
+Identify the key metrics that need to be monitored.
+For example:
+website - need to monitor metrics such as page load time, user engagement, and server response time.
+mobile app - need to monitor battery usage and network performance metrics.
+
+Major components:
+
+1. Metrics source - This can be application servers, SQL databases, message queues, etc.
+2. Metrics/ Data collector -  Collects metrics data from different sources and writes data into the time-series database.
+3. Time-series database - This stores metrics data as time series.
+                        - It usually provides a custom-query interface for analyzing and summarizing a large amount of time-series data.
+                        - It maintains indexes on labels to facilitate the fast lookup of data using the labels.
+4. Query service: The query service makes it easy to query and retrieve data from the time-series databases.
+5.Alerting system - analyzes the incoming data, detects anomalies and generates alerts.
+                  - This sends alert notifications to various alerting destinations.
+6. Visualization system - This shows metrics in the form of various graphs/charts. Visualization is built on top of the data layer. Metrics can be shown on the metrics dashboard over various time scales and alerts can be shown on the dashboard. A high-quality visualization system is hard to build. There's a strong argument for using an off-the-shelf system. For example, Grafana can be a very good system for this purpose.
+7. Data transmission - transfers data from sources to the metrics monitoring system.
+
+Data modelling:
+Name	                                        Type
+A metric name	                                String
+A set of tags/labels	                        List of <key: value> pairs
+An array of values and their timestamps	        An array of <value, timestamp> pairs
+
+Storage:
+1. SQL DB ?? not optimized for operations commonly performed against time-series data.
+2. Normal general DB - can support time-series data -  but it will require extensive tuning to make it work on a large scale.
+3. Popular time-series databases - Influx DB (database) and Prometheus,
+   - Designed to store large volumes of time-series data and perform real time analysis.
+   - Efficient aggregation.
+   - Influx DB builds indexes on the labels to facilitate the fast lookup of time-series by labels.
+
+Logic InDepth:
+
+1. Metrics Collection??
+    2 ways - push model, pull model
+
+    Pull - e.g. Prometheus
+
+    1. Metrics sources instances will self-register at startup over the known IP:Port of service discovery/registration cluster.
+    2. Metrics collector can optionally register to changes with service discovery to receive an update whenever the service endpoint change.
+    3. Metrics collector fetches configuration metadata of service endpoints from service discovery. Metadata includes pulling interval, IP addresses, timeout and retry parameters.
+    4. Metrics collector pulls metrics data via a predefined HTTP endpoint.
+
+
+    In a pull model, the metrics collector pulls the metrics from the sources. Consequently the metrics collector needs to know the complete list of service ends to pull the data.
+    We can use a reliable, scalable and maintainable service like service discovery, provided by ETCD and Zookeeper.
+    A service discovery contains configuration rules about when and where to collect the metrics.
+
+    The metrics collector fetches the configuration metadata of service endpoint from service discovery.
+    Metadata includes pulling interval, IP addresses, timeout and retry parameters.
+    The metrics collector pulls the metric data using the HTTP endpoint (for example, web servers) or TCP (transmission control protocol) endpoint (for DB clusters).
+    The metrics collector registers a change event notification with the service directory to get an update whenever the service endpoints change.
+
+    Push - e.g. Graphite, Amazon Cloudwatch
+
+    1. Clients send metrics to a centralized server via HTTP, gRPC, or Kafka.
+    2. A collection agent is installed on every server being monitored. Agent collects metrics from the services running on the server and pushes those metrics periodically.
+    - A collection agent is long-running software that collects the metrics from the service running on the server and pushes those metrics to the collector.
+    3. To prevent metrics from falling behind in push model, metrics collector should be in an autoscale cluster with a load balancer.
+
+Pull or push or both???
+
+Push Monitoring System:
+
+Advantages:
+- Real-time notifications of issues and alerts
+- Can alert multiple recipients at once.
+- Can be customized to specific needs and requirements
+- Can be integrated with other systems and applications
+
+Disadvantages:
+- Requires a constant and reliable internet connection to function properly
+- Can be overwhelming with too many notifications and alerts
+- Can be vulnerable to cyber-attacks and security breaches
+
+Pull Monitoring System:
+
+Advantages:
+- Can be accessed remotely and for multiple devices
+- Can be set up to check specific metrics and parameters at regular intervals
+- Can be easily configured and customized
+- Can provide detailed and historical data for analysis and reporting
+
+Disadvantages:
+- Requires manual intervention to check and review the data.
+- May not provide the real-time alerts and notifications
+- Can be less efficient in identifying and responding to issues and anomalies.
+
+
+Scaling the metrics transmission pipeline
+Whether we use the push or pull model, the metrics collector of servers and the cluster receive enormous amounts of data.
+There's a risk of data loss if the time-series database is unavailable. To navigate through the risk of losing data, we can use a queueing component
+
+
+In this design, the metrics collector sends metric data to a queuing system like Kafka. Then consumers or streaming processing services such as Apache Spark process and push the data to the time-series database. This approach has several advantages:
+
+Kafka is used as a highly reliable and scalable distributed messaging platform.
+It decouples the data collection and processing services from one another.
+It can easily prevent data loss when the database is unavailable by retaining the data in Kafka.
+
+2. How to save Metrics??
+
+    1. Cassandra -> highly optimized for handling a large number of writes.
+    2. Spark -> for batch processing to produce aggregations and save them back into the database.
+         X But Batch processing can introduce significant delays. - Latency
+    3. Metrics collector write Data into stream (via Kafka/ Kinesis) -
+       A stream processor can then aggregate the data and push it to a time-series database. (e.g. influxDB, Prometheus, Amazon TimeStream)
+       -> Write volume to the DB will significantly reduce.
+       X Handling late arriving events could be a challenge.
+
+       NOTE: We are performing aggregation before writing data to storage (ingestion pipeline).
+       Aggregation can be done in two other ways:
+       a) on the collection agent (push model), or
+       b) at query time. However, aggregating at query time might result in slower query speeds.
+
+Space optimization – In order to optimize the storage, following strategies can be used to tackle this problem:
+
+1. Data encoding and compression:
+    - Data encoding is the process of translating data from one format into another,
+    typically for the purposes of efficient transmission or storage.
+    - Data compression is a related process that involves reducing the amount of data required to represent a given piece of information.
+    - Together data encoding and compression can significantly reduce the size of the data.
+        It is the process of encoding, restructuring, or otherwise modifying data to reduce its size.
+        Essentially, it involves re-encoding information with fewer bits than the original representation.
+
+2. Downsampling: Downsampling is the process of reducing the number of samples in a dataset by removing some data points.
+This is often done to reduce the amount of data that needs to be processed and to simply the analysis.
+Downsampling can be done in a variety of ways, including randomly selecting a subset of the data points,
+using a specific algorithm to select the data points, or using a specific sampling frequency to reduce the data.
+If the data retention policy is set to one year, we can sample the data using the following example.
+
+Retention: seven days, no sampling
+Retention: 30 days, down sample to one minute resolution
+Retention: one-year, down sample to one hour resolution
+
+3. Query Metrics??
+
+    The query service consists of a cluster of query servers
+    that access the time-series databases and
+    handle requests from visualization or alerting systems.
+    By having dedicated query servers, we decouple the time-series databases from the clients (visualization and alerting systems),
+    which adds flexibility to change the time-series database (e.g to OLAP database)
+    or the visualization and alerting systems as needed.
+
+    To reduce the load of the time-series database and make the query service more performant,
+    cache servers can be added to store query results
+
+4. Alert Flow
+ The alert thresholds should be carefully chosen to ensure that they are sensitive enough to detect potential issues,
+ but not so sensitive that they generate erroneous alerts.
+
+      1. Load the config files to the cache servers. Rules are defined as config files on the disk.
+      2. The alert manager fetches alert configs from the cache.
+      3. Based on the config rules, the alert manager calls the query service at a predefined interval. If the value violates the threshold, an alert event is created. The alert manager is responsible for the following:
+          - Filter, merge, and dedupe alerts.
+          - Access control—to avoid human error and keep the system secure, it is essential to restrict access to certain alert management operations to authorized individuals only.
+          - Retry—the alert manager checks alert states and ensures a notification is sent at least once.
+          - The alert store is a key-value database such as Cassandra, that keeps the state (in-active, pending, firing, resolved) of all alerts. It ensures a notification is sent at least once.
+          - Eligible alerts are inserted into a messaging and queuing system such as Kafka.
+          - Alert consumers pull alert events from the messaging and queuing system.
+          - Alert consumers process alert events from the messaging and queuing system and sends notifications to different channels such as email, text message, PageDuty, or HTTP endpoints.
+
+    Rules are defined as config files.
+    These rules are saved in the database
+
+    1. The alert service fetches alert configs.
+    2. Based on the config rules, the alert manager calls the query service at a pre-defined interval.
+    3. If the value violates the threshold, an alert event is created.
+
+    Sample config file:
+
+    # "Datapoints to alarm" is the number of data points that must breach to
+    # send an alarm to the ALARM state. "Evaluation periods" is the number of
+    # most recent periods to evaluate when determining alarm state.
+
+    Metric {
+      metricName: "CPUUtilization"
+      period: Duration.minutes(ONE_MIN), # each period is aggregated into one data point.
+      Statistics: MAXIMUM
+    }
+
+    Alarm {
+      AlertName: CPUAlarmHigh
+      AlertDescription: 'Alarm if average cpu utilization greater than 70% of
+                         reserved cpu for 6 1-minute periods out 10 1-minute period
+                        ',
+      Metric: "CPUUtilization"
+
+      Statistics: Average
+      EvaluationPeriods: 10 # Number of periods that are taken into account when the alarm is evaluated.
+      DataPointsToAlarm: 6  # Number of data points that must be breaching to send the alarm into ALARM state.
+      threshold: 80
+      comparisonOperator: GREATER_THAN_THRESHOLD
+      treatMissingData: BREACHING
+    }
+
+Time-Series DB (TSDB)
+- These are specialized database systems optimized for handling time-stamped or time-series data efficiently.
+- Optimized Storage:
+    TSDB uses specialized storage formats tailored for this time-series data.
+    This allows them to handle large volumes of data more efficiently compared to traditional databases.
+- Fast Retrieval:
+    TSDB are optimized for retrieving data based on time ranges or specific timestamps.
+    It maintains indexes on labels to facilitate the fast lookup of time-series data by labels.
+- Aggregation and Downsampling:
+    They often support built-in aggregation allowing users to aggregate data over different time intervals (e.g., minutes, hours, days).
+- Custom Query:
+    They usually provide a custom query interface for analyzing and summarizing a large amount of time-series data.
+- Streaming Data Support:
+    Many TSDBs are capable of ingesting and processing streaming data in real-time,
+     making them suitable for applications such as IoT, monitoring, and telemetry.
+- Specialized Functions:
+    They often provide specialized functions and operations tailored for time-series data analysis, such as
+    interpolation, outlier detection, moving averages, and trend analysis.
+- Integration with Analytical Tools:
+    They typically integrate seamlessly with various analytical and visualization tools.
+
+
+Service Registry and Discovery frameworks
+Services like Zookeeper, consul and etcd are service registry/discovery frameworks. Core concept in all of them is same.
+
+- They have set of nodes, typically 3 or 5, providing a key-value store.
+- They provide set of libraries that allows service registration and discovery from this key-value store.
+- They also provide features like ‘watches’ which notifies clients of any change for a particular key.
+This feature is typically used to notify clients when new service instances are registered or instances fail.
+
+Service discovery process
+
+- Etcd exposes well knows IP addresses and ports.
+- Service instances self-register at startup over these IP addresses and ports.
+- Each key in etcd can be assigned a TTL (time to live) after which the key expires.
+- It’s the duty of the service itself to update the TTL.
+- If the service instance goes down, the key corresponding to the service instance will expire after the TTL that was set.
+- If a client for the service has setup a watch for this service, the client is notified of the addition or removal.
