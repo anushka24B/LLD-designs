@@ -8,11 +8,17 @@ FUNCTIONAL REQUIREMENTS:
 NFR:
 1. Data collected should be accurate, reliable, and easily accessible.
 2. constant heavy write load, while the read load is spiky.
+3. Scalable, low latency,
 
 Assumptions::
 The data must be averaged every 10 minutes, which accounts for about 10 million operational metrics written per day,
 and many metrics are collected at high frequency.
+The metrics can be low-level usage of the data of the OS such as CPU load, memory usage, and disk space consumption, or high-level concepts such as requests per second of a service or running server count of a web pool.
+The infrastructure being monitored is large-scale ( 100m DAU, 100 server pools, 100 machines per pool, 100 metrics per machine which leads to approximately 10 mn metrics).
 
+The data retention policy suggests using raw form for 7 days,
+1 minute resolution for one month, and
+1 hour resolution for 1 year.
 
 Identify the key metrics that need to be monitored.
 For example:
@@ -33,10 +39,15 @@ Major components:
 7. Data transmission - transfers data from sources to the metrics monitoring system.
 
 Data modelling:
+Each data point can contain info like metric_name, labels, timestamp, value
+Each time series consists of:
 Name	                                        Type
 A metric name	                                String
 A set of tags/labels	                        List of <key: value> pairs
 An array of values and their timestamps	        An array of <value, timestamp> pairs
+
+Data access pattern :
+Write load is heavy with spiky read load ( as and when alerting and visualization applications need it)
 
 Storage:
 1. SQL DB ?? not optimized for operations commonly performed against time-series data.
@@ -68,12 +79,28 @@ Logic InDepth:
     The metrics collector pulls the metric data using the HTTP endpoint (for example, web servers) or TCP (transmission control protocol) endpoint (for DB clusters).
     The metrics collector registers a change event notification with the service directory to get an update whenever the service endpoints change.
 
+    Questions :
+
+    1. How to make sure that the metric collectors don’t miss out on collecting metrics from any server?
+    A possible solution is that the metrics collectors can use service discovery to fetch metadata of service endpoints. Metrics collector can pull metrics data via pre-defined HTTP endpoints exposed by a client library running on the service sending the metric. Or the metric collector can register for a change event notification with a service discovery to receive an update whenever a service endpoint changes.
+    2. How to ensure that the metric collector doesn’t bring duplicate data from multiple instances of running servers.
+    A potential solution is to use some coordination scheme like a consistent hash ring mechanism that maps every single server being monitored by its unique name in the hash ring.
+
     Push - e.g. Graphite, Amazon Cloudwatch
 
     1. Clients send metrics to a centralized server via HTTP, gRPC, or Kafka.
     2. A collection agent is installed on every server being monitored. Agent collects metrics from the services running on the server and pushes those metrics periodically.
     - A collection agent is long-running software that collects the metrics from the service running on the server and pushes those metrics to the collector.
     3. To prevent metrics from falling behind in push model, metrics collector should be in an autoscale cluster with a load balancer.
+
+    Questions :
+
+    What would you do if the push traffic is high and the metric collector rejects the push with an error?
+    Can collection agents keep a small buffer of data locally and resend it later? But what if the servers are in an auto-scaling group, then holding data locally might result in data loss when the collector falls behind. A possible solution may be to put the metric collector in an auto-scaling cluster with a load balancer in front of it.
+    E.g. Cloud Watch/graphite
+
+    Which is better ( push vs pull model )?
+    think in terms of debugging(pull wins), Health check ( pull wins), Short-lived jobs(push wins) , firewall or complicated network setups ( push wins), performance ( TCP vs UDP: Push wins), data authenticity ( Pull wins)
 
 Pull or push or both???
 
@@ -105,6 +132,13 @@ Disadvantages:
 
 
 Scaling the metrics transmission pipeline
+The unavailability of a time-series database may lead to data loss.
+To address this use a querying component.
+The metric collector can send metric data to a querying system like Kafka, and then streaming processing services (Apache Storm, flink, etc) push data to time-series db.
+A highly reliable & scalable distributed messaging platform decouples the data collection and data processing services from each other and prevents data loss if the DB is unavailable.
+Use Kafka’s built-in partitioning mechanism to scale the system where several partitions can be configured based on throughput requirements.
+Partitioning can even be done by metric names. Categories and priorities of the important metrics using Kafka’s features.
+
 Whether we use the push or pull model, the metrics collector of servers and the cluster receive enormous amounts of data.
 There's a risk of data loss if the time-series database is unavailable. To navigate through the risk of losing data, we can use a queueing component
 
@@ -114,6 +148,12 @@ In this design, the metrics collector sends metric data to a queuing system like
 Kafka is used as a highly reliable and scalable distributed messaging platform.
 It decouples the data collection and processing services from one another.
 It can easily prevent data loss when the database is unavailable by retaining the data in Kafka.
+
+Metric aggregation: Where should metric aggregation happen?
+
+In collection agent ( on the client side)? : limited to simple aggregation.
+In the Ingestion pipeline ( before writing to db)? : Handling late-arriving events could be a challenge, data precision can be an issue as raw data is not stored
+In the Query side ( after writing to storage)? : no data loss but query speed might be slower
 
 2. How to save Metrics??
 
@@ -163,6 +203,14 @@ Retention: one-year, down sample to one hour resolution
     cache servers can be added to store query results
 
 4. Alert Flow
+A typical Alert flow pipeline consists of :
+
+1. load config files to cache servers (rules are defined as config files on the disk in the YAML file)
+2. alert manager fetches the alert from this config file and calls the query service at a predefined interval, triggering an alert event if the value violates the rule.
+3. The alert manager also filters, merges, and dedupe alerts, and manages access control by restricting access to certain operations/users.
+4. The alert store can be a key-value db that keeps the state of active, pending, firing, and resolved alerts, ensuring notification is sent only once.
+5. Eligible alerts are inserted into Kafka and alert consumers process alert events from Kafka and sends notifications to different channels such as email, text message, or HTTP endpoints.
+
  The alert thresholds should be carefully chosen to ensure that they are sensitive enough to detect potential issues,
  but not so sensitive that they generate erroneous alerts.
 
